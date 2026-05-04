@@ -14,3 +14,7 @@ dist
 # Weave runtime artefacts
 /.weave/state/
 /.weave/.lock
+
+# Kenney assets are re-downloadable CC0 — don't bloat the repo
+/assets/kenney/*
+!/assets/kenney/.gitkeep
