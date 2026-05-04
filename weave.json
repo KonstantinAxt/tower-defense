@@ -1,7 +1,8 @@
 {
 	"provider": "bedrock",
 	"models": {
-		"planner": "claude-opus-4-7",
+		"reviewer": "claude-opus-4-7",
+		"questioner": "claude-opus-4-7",
 		"worker": "claude-sonnet-4-6"
 	},
 	"run": {
