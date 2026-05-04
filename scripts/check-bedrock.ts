@@ -6,8 +6,7 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
 const REGION = process.env.AWS_REGION ?? "us-east-1";
-const MODEL_ID =
-	process.env.WEAVE_BEDROCK_SMOKE_MODEL ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
+const MODEL_ID = process.env.WEAVE_BEDROCK_SMOKE_MODEL ?? "claude-haiku-4-5";
 
 async function main(): Promise<void> {
 	const client = new BedrockRuntimeClient({ region: REGION });

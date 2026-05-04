@@ -1,8 +1,8 @@
 {
 	"provider": "bedrock",
 	"models": {
-		"planner": "anthropic.claude-opus-4-7-v1:0",
-		"worker": "anthropic.claude-sonnet-4-6-v1:0"
+		"planner": "claude-opus-4-7",
+		"worker": "claude-sonnet-4-6"
 	},
 	"run": {
 		"maxParallel": 4,
