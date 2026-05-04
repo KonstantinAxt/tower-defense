@@ -1,0 +1,28 @@
+{
+	"provider": "bedrock",
+	"models": {
+		"planner": "anthropic.claude-opus-4-7-v1:0",
+		"worker": "anthropic.claude-sonnet-4-6-v1:0"
+	},
+	"run": {
+		"maxParallel": 4,
+		"maxTurns": 120
+	},
+	"budgets": {
+		"planning": 60000,
+		"research": 25000,
+		"code": 30000,
+		"refactor": 20000,
+		"write": 15000,
+		"other": 15000,
+		"total": 400000
+	},
+	"feedbackLoops": {
+		"scope": "repo",
+		"commands": ["bun run typecheck", "bun run lint", "bun run test:unit"]
+	},
+	"sevenTrees": {
+		"domain": "td",
+		"copyFiles": [".env.local"]
+	}
+}
