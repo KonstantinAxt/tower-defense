@@ -55,16 +55,17 @@ export function attachUI(opts: MenuOptions): void {
 	});
 
 	menu.addEventListener("click", (e) => {
-		const target = e.target as HTMLElement | null;
-		if (!target) return;
-		const action = target.dataset.action;
+		const raw = e.target as HTMLElement | null;
+		const actionEl = raw?.closest<HTMLElement>("[data-action]") ?? null;
+		if (!actionEl) return;
+		const action = actionEl.dataset.action;
 		if (action === "close") {
 			selectedSlot = null;
 			renderMenu(opts);
 			return;
 		}
 		if (action === "build" && selectedSlot !== null) {
-			const kind = target.dataset.kind as TowerKind | undefined;
+			const kind = actionEl.dataset.kind as TowerKind | undefined;
 			if (!kind) return;
 			buildTower(world, kind, selectedSlot);
 			renderMenu(opts);
