@@ -12,6 +12,7 @@ export class Loop {
 	private accumulator = 0;
 	private lastMs: number | null = null;
 	private paused = false;
+	private speed = 1;
 
 	constructor(
 		private readonly update: UpdateFn,
@@ -33,6 +34,7 @@ export class Loop {
 		this.lastMs = nowMs;
 		if (frameTime < 0) frameTime = 0;
 		if (frameTime > this.maxFrameTime) frameTime = this.maxFrameTime;
+		frameTime *= this.speed;
 
 		if (!this.paused) {
 			this.accumulator += frameTime;
@@ -44,6 +46,17 @@ export class Loop {
 
 		const alpha = this.accumulator / this.fixedDt;
 		this.render(alpha);
+	}
+
+	setSpeed(speed: number): void {
+		if (!Number.isFinite(speed) || speed <= 0) {
+			throw new Error("speed must be a positive finite number");
+		}
+		this.speed = speed;
+	}
+
+	getSpeed(): number {
+		return this.speed;
 	}
 
 	pause(): void {

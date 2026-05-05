@@ -113,6 +113,8 @@ describe("WaveController scheduling", () => {
 		c.update(world, 0.016);
 		expect(c.state).toBe("idle");
 		expect(c.currentWave).toBe(2);
+		// HUD-relevant: world.wave tracks the next wave to play, not the last started.
+		expect(world.wave).toBe(2);
 	});
 
 	test("lives <= 0 transitions to 'lost'", () => {

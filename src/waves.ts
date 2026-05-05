@@ -115,11 +115,11 @@ export class WaveController {
 
 		if (this.state === "clearing") {
 			const enemies = world.query(C_ENEMY_TYPE);
-			if (enemies.length === 0) this.onWaveCleared();
+			if (enemies.length === 0) this.onWaveCleared(world);
 		}
 	}
 
-	private onWaveCleared(): void {
+	private onWaveCleared(world: World): void {
 		const cleared = this.currentWave;
 		if (this.currentWave >= TOTAL_WAVES) {
 			this.state = "won";
@@ -128,6 +128,7 @@ export class WaveController {
 			this.state = "idle";
 			this.waveTime = 0;
 		}
+		world.wave = this.currentWave;
 		this.onCleared?.(cleared);
 	}
 
