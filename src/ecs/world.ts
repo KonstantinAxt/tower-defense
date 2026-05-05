@@ -5,6 +5,8 @@ export class World {
 	// Player lives. The game sets this at boot; the movement system decrements
 	// it when an enemy reaches the exit. Zero or negative means game over.
 	lives = 0;
+	gold = 0;
+	wave = 0;
 	private nextId: Entity = 1;
 	private readonly alive = new Set<Entity>();
 	private readonly stores = new Map<ComponentType, Map<Entity, unknown>>();
