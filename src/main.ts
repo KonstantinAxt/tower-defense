@@ -6,7 +6,16 @@ import { Loop } from "./loop";
 import { clearParticles, renderParticles, updateParticles } from "./particles";
 import { renderScene } from "./render/scene";
 import { type StorageLike, deserialize, loadFromStorage, saveToStorage, serialize } from "./save";
-import { projectileSystem, renderProjectiles, renderTowers, towerSystem } from "./towers";
+import {
+	C_TOWER,
+	type Tower,
+	projectileSystem,
+	renderProjectiles,
+	renderTowers,
+	towerSystem,
+	towerUpgradeCost,
+	upgradeTower,
+} from "./towers";
 import { attachUI, clearSelection, getSelectedSlot, updateHud } from "./ui";
 import { TOTAL_WAVES, WaveController, type WaveState } from "./waves";
 
@@ -180,6 +189,42 @@ async function boot(
 		requestAnimationFrame(tick);
 	};
 	requestAnimationFrame(tick);
+
+	if (import.meta.env.DEV) {
+		(window as unknown as { __td: TestHandle }).__td = {
+			world,
+			controller,
+			loop,
+			restart,
+			startWave: () => {
+				if (controller.canStart()) {
+					controller.startWave(world);
+					clearSelection(menuEl);
+					lastWaveState = controller.state;
+				}
+			},
+			upgradeAffordable: () => {
+				let count = 0;
+				for (const e of world.query(C_TOWER)) {
+					const tower = world.getComponent<Tower>(e, C_TOWER);
+					if (!tower) continue;
+					const cost = towerUpgradeCost(tower);
+					if (cost === null || world.gold < cost) continue;
+					if (upgradeTower(world, e)) count++;
+				}
+				return count;
+			},
+		};
+	}
+}
+
+interface TestHandle {
+	world: World;
+	controller: WaveController;
+	loop: Loop;
+	restart: () => void;
+	startWave: () => void;
+	upgradeAffordable: () => number;
 }
 
 function toggleModal(modal: HTMLElement, open: boolean): void {

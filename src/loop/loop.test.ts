@@ -109,4 +109,19 @@ describe("Loop — fixed timestep", () => {
 		expect(() => makeLoop({ fixedDt: 0 })).toThrow();
 		expect(() => makeLoop({ fixedDt: -1 })).toThrow();
 	});
+
+	test("speed multiplier scales sim time per real second", () => {
+		loop.step(0);
+		loop.setSpeed(4);
+		// 1 real frame at 60fps -> 4 fixed updates instead of 1
+		loop.step(FIXED_DT * 1000);
+		expect(counts.updates).toBe(4);
+	});
+
+	test("setSpeed rejects non-positive or non-finite values", () => {
+		expect(() => loop.setSpeed(0)).toThrow();
+		expect(() => loop.setSpeed(-2)).toThrow();
+		expect(() => loop.setSpeed(Number.NaN)).toThrow();
+		expect(() => loop.setSpeed(Number.POSITIVE_INFINITY)).toThrow();
+	});
 });
