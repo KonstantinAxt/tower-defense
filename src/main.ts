@@ -1,11 +1,13 @@
 import { loadSprites } from "./assets/loader";
+import { attachAutoResume, play, setMuted } from "./audio";
 import { SystemRunner, World } from "./ecs";
 import { movementSystem, renderEnemies } from "./enemies";
 import { Loop } from "./loop";
+import { clearParticles, renderParticles, updateParticles } from "./particles";
 import { renderScene } from "./render/scene";
 import { projectileSystem, renderProjectiles, renderTowers, towerSystem } from "./towers";
 import { attachUI, clearSelection, getSelectedSlot, updateHud } from "./ui";
-import { TOTAL_WAVES, WaveController } from "./waves";
+import { TOTAL_WAVES, WaveController, type WaveState } from "./waves";
 
 const STARTING_LIVES = 20;
 const STARTING_GOLD = 250;
@@ -53,12 +55,16 @@ async function boot(
 	resetWorld(world);
 
 	const controller = new WaveController();
+	let lastWaveState: WaveState = controller.state;
+
+	attachAutoResume(window);
 
 	const systems = new SystemRunner();
 	systems.add((w, dt) => controller.update(w, dt));
 	systems.add(movementSystem);
 	systems.add(towerSystem);
 	systems.add(projectileSystem);
+	systems.add((_w, dt) => updateParticles(dt));
 
 	attachUI({ canvas: canvasEl, menu: menuEl, hud, world });
 
@@ -69,6 +75,7 @@ async function boot(
 			renderTowers(ctx2d, world, sprites, getSelectedSlot());
 			renderProjectiles(ctx2d, world, sprites);
 			renderEnemies(ctx2d, world, sprites);
+			renderParticles(ctx2d);
 			updateHud(hud, world);
 			updateControls();
 		},
@@ -88,26 +95,44 @@ async function boot(
 
 		toggleModal(winModal, controller.state === "won");
 		toggleModal(loseModal, controller.state === "lost");
+
+		if (controller.state !== lastWaveState) {
+			if (controller.state === "won") play("win");
+			else if (controller.state === "lost") play("lose");
+			lastWaveState = controller.state;
+		}
 	}
 
 	waveButton.addEventListener("click", () => {
 		if (controller.canStart()) {
 			controller.startWave(world);
 			clearSelection(menuEl);
+			lastWaveState = controller.state;
+			play("waveStart");
 		}
 	});
 
 	pauseButton.addEventListener("click", () => {
-		if (loop.isPaused()) loop.resume();
-		else loop.pause();
+		if (loop.isPaused()) {
+			loop.resume();
+			setMuted(false);
+		} else {
+			loop.pause();
+			setMuted(true);
+		}
 		updateControls();
 	});
 
 	const restart = (): void => {
 		resetWorld(world);
 		controller.restart();
+		clearParticles();
 		clearSelection(menuEl);
-		if (loop.isPaused()) loop.resume();
+		if (loop.isPaused()) {
+			loop.resume();
+			setMuted(false);
+		}
+		lastWaveState = controller.state;
 		updateControls();
 	};
 
