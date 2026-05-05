@@ -1,9 +1,11 @@
 import type { SpriteKey, SpriteMap } from "./assets/loader";
+import { play } from "./audio";
 import type { Entity, World } from "./ecs";
 import { C_ENEMY_TYPE, C_HEALTH, C_PATH_FOLLOW, C_POSITION } from "./enemies";
 import type { EnemyType, Health, PathFollow, Position } from "./enemies";
 import { BUILD_SLOTS, BUILD_SLOT_RADIUS } from "./level";
 import type { Point } from "./level";
+import { emitDeathBurst, emitExplosion, emitImpact, emitMuzzleFlash } from "./particles";
 
 export type TowerKind = "cannon" | "mg" | "mortar";
 export type TargetingMode = "first" | "closest";
@@ -234,6 +236,8 @@ function spawnProjectile(world: World, tower: Tower, tier: TowerTier, target: En
 		aoe: tier.aoe,
 	};
 	world.addComponent(entity, C_PROJECTILE, proj);
+	emitMuzzleFlash(tower.x, tower.y, target.x - tower.x, target.y - tower.y);
+	play("shot");
 }
 
 const HIT_RADIUS = 6;
@@ -272,6 +276,8 @@ export function projectileSystem(world: World, dt: number): void {
 
 function resolveHit(world: World, proj: Projectile): void {
 	if (proj.aoe > 0) {
+		emitExplosion(proj.x, proj.y, proj.aoe);
+		play("hit");
 		const ids = world.query(C_POSITION, C_HEALTH, C_ENEMY_TYPE);
 		const r2 = proj.aoe * proj.aoe;
 		for (const id of ids) {
@@ -287,6 +293,8 @@ function resolveHit(world: World, proj: Projectile): void {
 		return;
 	}
 
+	emitImpact(proj.x, proj.y);
+	play("hit");
 	if (world.hasEntity(proj.target)) {
 		applyDamage(world, proj.target, proj.damage);
 	}
@@ -298,7 +306,13 @@ function applyDamage(world: World, target: Entity, damage: number): void {
 	health.hp -= damage;
 	if (health.hp <= 0) {
 		const et = world.getComponent<EnemyType>(target, C_ENEMY_TYPE);
-		if (et) world.gold += et.bounty;
+		if (et) {
+			world.gold += et.bounty;
+			const pos = world.getComponent<Position>(target, C_POSITION);
+			const color = et.kind === "fast" ? "#e24646" : "#a07050";
+			if (pos) emitDeathBurst(pos.x, pos.y, color);
+			play("enemyDeath");
+		}
 		world.destroyEntity(target);
 	}
 }

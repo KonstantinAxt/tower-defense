@@ -1,3 +1,4 @@
+import { play } from "./audio";
 import type { World } from "./ecs";
 import { BUILD_SLOTS } from "./level";
 import {
@@ -73,14 +74,14 @@ export function attachUI(opts: MenuOptions): void {
 		if (action === "build" && selectedSlot !== null) {
 			const kind = actionEl.dataset.kind as TowerKind | undefined;
 			if (!kind) return;
-			buildTower(world, kind, selectedSlot);
+			if (buildTower(world, kind, selectedSlot)) play("build");
 			renderMenu(opts);
 			return;
 		}
 		if (action === "upgrade" && selectedSlot !== null) {
 			const tower = findTowerAtSlot(world, selectedSlot);
 			if (tower !== null) {
-				upgradeTower(world, tower);
+				if (upgradeTower(world, tower)) play("upgrade");
 				renderMenu(opts);
 			}
 		}
