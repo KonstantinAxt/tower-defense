@@ -80,6 +80,65 @@
 				font-size: 11px;
 			}
 			#build-menu .menu-close:hover { color: #fff; border-color: #888; }
+
+			#controls {
+				position: absolute;
+				top: 8px;
+				right: 8px;
+				display: flex;
+				gap: 8px;
+				z-index: 5;
+			}
+			#controls button {
+				padding: 6px 12px;
+				background: #2a2a2e;
+				border: 1px solid #777;
+				border-radius: 4px;
+				color: #eee;
+				font: inherit;
+				font-size: 13px;
+				cursor: pointer;
+			}
+			#controls button:hover:not(:disabled) { background: #3a3a40; border-color: #aaa; }
+			#controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+			#wave-button { background: #2e4a2e; border-color: #5cba5c; }
+			#wave-button:hover:not(:disabled) { background: #3a5a3a; }
+			#wave-button.hidden { display: none; }
+
+			.modal {
+				position: absolute;
+				inset: 0;
+				display: none;
+				align-items: center;
+				justify-content: center;
+				background: rgba(0, 0, 0, 0.72);
+				z-index: 20;
+			}
+			.modal.open { display: flex; }
+			.modal .panel {
+				min-width: 280px;
+				padding: 24px 28px;
+				background: #1d1d20;
+				border: 1px solid #777;
+				border-radius: 8px;
+				text-align: center;
+				box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+			}
+			.modal h2 { margin: 0 0 8px; font-size: 22px; }
+			.modal p { margin: 0 0 16px; color: #bbb; font-size: 14px; }
+			.modal button {
+				padding: 8px 18px;
+				background: #2a2a2e;
+				border: 1px solid #888;
+				border-radius: 4px;
+				color: #eee;
+				font: inherit;
+				font-size: 14px;
+				cursor: pointer;
+			}
+			.modal button:hover { background: #3a3a40; border-color: #ccc; }
+			#win-modal h2 { color: #6cc36c; }
+			#lose-modal h2 { color: #e25050; }
 		</style>
 	</head>
 	<body>
@@ -91,6 +150,24 @@
 				<div class="stat"><span class="label">wave</span><span class="value" data-testid="hud-wave" id="hud-wave">0</span></div>
 			</div>
 			<div id="build-menu" data-testid="build-menu"></div>
+			<div id="controls">
+				<button id="wave-button" type="button" data-testid="wave-button">Start Wave 1</button>
+				<button id="pause-button" type="button" data-testid="pause-button">Pause</button>
+			</div>
+			<div id="win-modal" class="modal" data-testid="win-modal">
+				<div class="panel">
+					<h2>Victory</h2>
+					<p>You cleared all 10 waves.</p>
+					<button type="button" data-action="restart" data-testid="win-restart">Play again</button>
+				</div>
+			</div>
+			<div id="lose-modal" class="modal" data-testid="lose-modal">
+				<div class="panel">
+					<h2>Defeat</h2>
+					<p>Your base fell. Try again?</p>
+					<button type="button" data-action="restart" data-testid="lose-restart">Restart</button>
+				</div>
+			</div>
 		</div>
 		<script type="module" src="/src/main.ts"></script>
 	</body>
