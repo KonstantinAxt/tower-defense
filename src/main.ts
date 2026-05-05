@@ -5,6 +5,7 @@ import { movementSystem, renderEnemies } from "./enemies";
 import { Loop } from "./loop";
 import { clearParticles, renderParticles, updateParticles } from "./particles";
 import { renderScene } from "./render/scene";
+import { type StorageLike, deserialize, loadFromStorage, saveToStorage, serialize } from "./save";
 import { projectileSystem, renderProjectiles, renderTowers, towerSystem } from "./towers";
 import { attachUI, clearSelection, getSelectedSlot, updateHud } from "./ui";
 import { TOTAL_WAVES, WaveController, type WaveState } from "./waves";
@@ -29,6 +30,8 @@ const hud = {
 
 const waveButton = requireEl("#wave-button") as HTMLButtonElement;
 const pauseButton = requireEl("#pause-button") as HTMLButtonElement;
+const saveButton = requireEl("#save-button") as HTMLButtonElement;
+const loadButton = requireEl("#load-button") as HTMLButtonElement;
 const winModal = requireEl("#win-modal");
 const loseModal = requireEl("#lose-modal");
 
@@ -58,6 +61,14 @@ async function boot(
 	let lastWaveState: WaveState = controller.state;
 
 	attachAutoResume(window);
+
+	const storage: StorageLike | null =
+		typeof localStorage !== "undefined" ? (localStorage as StorageLike) : null;
+
+	controller.onCleared = () => {
+		if (!storage) return;
+		saveToStorage(serialize(world, controller), storage);
+	};
 
 	const systems = new SystemRunner();
 	systems.add((w, dt) => controller.update(w, dt));
@@ -93,6 +104,10 @@ async function boot(
 					: `Start Wave ${controller.currentWave}`;
 		pauseButton.textContent = loop.isPaused() ? "Resume" : "Pause";
 
+		const betweenWaves = controller.state === "idle" && controller.currentWave <= TOTAL_WAVES;
+		saveButton.disabled = !storage || !betweenWaves;
+		loadButton.disabled = !storage || !betweenWaves || loadFromStorage(storage) === null;
+
 		toggleModal(winModal, controller.state === "won");
 		toggleModal(loseModal, controller.state === "lost");
 
@@ -120,6 +135,23 @@ async function boot(
 			loop.pause();
 			setMuted(true);
 		}
+		updateControls();
+	});
+
+	saveButton.addEventListener("click", () => {
+		if (!storage) return;
+		if (controller.state !== "idle" || controller.currentWave > TOTAL_WAVES) return;
+		saveToStorage(serialize(world, controller), storage);
+		updateControls();
+	});
+
+	loadButton.addEventListener("click", () => {
+		if (!storage) return;
+		if (controller.state !== "idle" || controller.currentWave > TOTAL_WAVES) return;
+		const snap = loadFromStorage(storage);
+		if (!snap) return;
+		deserialize(world, controller, snap);
+		clearSelection(menuEl);
 		updateControls();
 	});
 
