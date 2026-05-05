@@ -54,10 +54,12 @@ export function getWaveDef(waveNumber: number): WaveDef | null {
 }
 
 type SpawnFn = (world: World, kind: EnemyKind, hpScale: number) => unknown;
+type WaveClearedFn = (waveJustCleared: number) => void;
 
 export class WaveController {
 	state: WaveState = "idle";
 	currentWave = 1;
+	onCleared: WaveClearedFn | null = null;
 	private waveTime = 0;
 	private spawnCounters: number[] = [];
 	private readonly spawn: SpawnFn;
@@ -118,13 +120,15 @@ export class WaveController {
 	}
 
 	private onWaveCleared(): void {
+		const cleared = this.currentWave;
 		if (this.currentWave >= TOTAL_WAVES) {
 			this.state = "won";
-			return;
+		} else {
+			this.currentWave += 1;
+			this.state = "idle";
+			this.waveTime = 0;
 		}
-		this.currentWave += 1;
-		this.state = "idle";
-		this.waveTime = 0;
+		this.onCleared?.(cleared);
 	}
 
 	restart(): void {
