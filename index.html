@@ -6,11 +6,171 @@
 		<title>Tower Defense</title>
 		<style>
 			html, body { margin: 0; padding: 0; background: #1a1a1a; color: #eee; font-family: system-ui, sans-serif; }
-			#game { display: block; margin: 0 auto; background: #2a2a2a; }
+			#stage { position: relative; width: 960px; margin: 0 auto; }
+			#game { display: block; background: #2a2a2a; }
+
+			#hud {
+				position: absolute;
+				top: 8px;
+				left: 8px;
+				display: flex;
+				gap: 14px;
+				padding: 6px 10px;
+				background: rgba(20, 20, 20, 0.78);
+				border: 1px solid #555;
+				border-radius: 6px;
+				font-size: 14px;
+				pointer-events: none;
+			}
+			#hud .stat { display: flex; gap: 4px; align-items: baseline; }
+			#hud .stat .label { color: #aaa; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+			#hud .stat .value { color: #fff; font-weight: 600; min-width: 22px; }
+
+			#build-menu {
+				position: absolute;
+				display: none;
+				min-width: 200px;
+				background: rgba(20, 20, 22, 0.96);
+				border: 1px solid #777;
+				border-radius: 6px;
+				padding: 8px;
+				font-size: 13px;
+				color: #eee;
+				box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+				z-index: 10;
+			}
+			#build-menu.open { display: block; }
+			#build-menu .menu-header {
+				font-weight: 600;
+				font-size: 13px;
+				margin-bottom: 6px;
+				color: #ffd24a;
+			}
+			#build-menu .tower-btn {
+				display: block;
+				width: 100%;
+				margin: 4px 0;
+				padding: 6px 8px;
+				text-align: left;
+				background: #2a2a2e;
+				border: 1px solid #555;
+				border-radius: 4px;
+				color: inherit;
+				font: inherit;
+				cursor: pointer;
+			}
+			#build-menu .tower-btn:hover:not(.disabled) { background: #3a3a40; border-color: #888; }
+			#build-menu .tower-btn.disabled { opacity: 0.45; cursor: not-allowed; }
+			#build-menu .tower-name { font-weight: 600; }
+			#build-menu .tower-stats { color: #bbb; font-size: 11px; margin-top: 2px; }
+			#build-menu .tower-cost { color: #ffd24a; font-size: 11px; margin-top: 2px; }
+			#build-menu .tower-cost.maxed { color: #6cc36c; }
+			#build-menu .invested { color: #888; }
+			#build-menu .menu-close {
+				display: block;
+				width: 100%;
+				margin-top: 6px;
+				padding: 4px;
+				background: transparent;
+				border: 1px solid #555;
+				border-radius: 4px;
+				color: #aaa;
+				cursor: pointer;
+				font: inherit;
+				font-size: 11px;
+			}
+			#build-menu .menu-close:hover { color: #fff; border-color: #888; }
+
+			#controls {
+				position: absolute;
+				top: 8px;
+				right: 8px;
+				display: flex;
+				gap: 8px;
+				z-index: 5;
+			}
+			#controls button {
+				padding: 6px 12px;
+				background: #2a2a2e;
+				border: 1px solid #777;
+				border-radius: 4px;
+				color: #eee;
+				font: inherit;
+				font-size: 13px;
+				cursor: pointer;
+			}
+			#controls button:hover:not(:disabled) { background: #3a3a40; border-color: #aaa; }
+			#controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+			#wave-button { background: #2e4a2e; border-color: #5cba5c; }
+			#wave-button:hover:not(:disabled) { background: #3a5a3a; }
+			#wave-button.hidden { display: none; }
+
+			.modal {
+				position: absolute;
+				inset: 0;
+				display: none;
+				align-items: center;
+				justify-content: center;
+				background: rgba(0, 0, 0, 0.72);
+				z-index: 20;
+			}
+			.modal.open { display: flex; }
+			.modal .panel {
+				min-width: 280px;
+				padding: 24px 28px;
+				background: #1d1d20;
+				border: 1px solid #777;
+				border-radius: 8px;
+				text-align: center;
+				box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+			}
+			.modal h2 { margin: 0 0 8px; font-size: 22px; }
+			.modal p { margin: 0 0 16px; color: #bbb; font-size: 14px; }
+			.modal button {
+				padding: 8px 18px;
+				background: #2a2a2e;
+				border: 1px solid #888;
+				border-radius: 4px;
+				color: #eee;
+				font: inherit;
+				font-size: 14px;
+				cursor: pointer;
+			}
+			.modal button:hover { background: #3a3a40; border-color: #ccc; }
+			#win-modal h2 { color: #6cc36c; }
+			#lose-modal h2 { color: #e25050; }
 		</style>
 	</head>
 	<body>
-		<canvas id="game" width="960" height="540" data-testid="game-canvas"></canvas>
+		<div id="stage">
+			<canvas id="game" width="960" height="540" data-testid="game-canvas"></canvas>
+			<div id="hud" data-testid="hud">
+				<div class="stat"><span class="label">gold</span><span class="value" data-testid="hud-gold" id="hud-gold">0</span></div>
+				<div class="stat"><span class="label">lives</span><span class="value" data-testid="hud-lives" id="hud-lives">0</span></div>
+				<div class="stat"><span class="label">wave</span><span class="value" data-testid="hud-wave" id="hud-wave">0</span></div>
+			</div>
+			<div id="build-menu" data-testid="build-menu"></div>
+			<div id="controls">
+				<button id="wave-button" type="button" data-testid="wave-button">Start Wave 1</button>
+				<button id="pause-button" type="button" data-testid="pause-button">Pause</button>
+				<button id="save-button" type="button" data-testid="save-button">Save</button>
+				<button id="load-button" type="button" data-testid="load-button">Load</button>
+			</div>
+			<div id="win-modal" class="modal" data-testid="win-modal">
+				<div class="panel">
+					<h2>Victory</h2>
+					<p>You cleared all 10 waves.</p>
+					<button type="button" data-action="restart" data-testid="win-restart">Play again</button>
+				</div>
+			</div>
+			<div id="lose-modal" class="modal" data-testid="lose-modal">
+				<div class="panel">
+					<h2>Defeat</h2>
+					<p>Your base fell. Try again?</p>
+					<button type="button" data-action="restart" data-testid="lose-restart">Restart</button>
+				</div>
+			</div>
+		</div>
 		<script type="module" src="/src/main.ts"></script>
 	</body>
 </html>
