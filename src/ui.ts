@@ -39,6 +39,12 @@ export function setSelectedSlot(value: number | null): void {
 	selectedSlot = value;
 }
 
+export function clearSelection(menu: HTMLElement): void {
+	selectedSlot = null;
+	menu.innerHTML = "";
+	menu.classList.remove("open");
+}
+
 export function attachUI(opts: MenuOptions): void {
 	const { canvas, menu, world } = opts;
 

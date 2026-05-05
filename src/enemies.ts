@@ -71,14 +71,15 @@ export interface EnemyType {
 	spriteSize: number;
 }
 
-export function spawnEnemy(world: World, kind: EnemyKind): Entity {
+export function spawnEnemy(world: World, kind: EnemyKind, hpScale = 1): Entity {
 	const stats = ENEMY_STATS[kind];
 	const pose = positionAtDistance(0);
 	const entity = world.createEntity();
 	const pos: Position = { x: pose.x, y: pose.y };
 	const vel: Velocity = { dx: pose.dirX * stats.speed, dy: pose.dirY * stats.speed };
 	const pf: PathFollow = { distance: 0, speed: stats.speed };
-	const health: Health = { hp: stats.maxHp, max: stats.maxHp };
+	const scaledMax = Math.max(1, Math.round(stats.maxHp * hpScale));
+	const health: Health = { hp: scaledMax, max: scaledMax };
 	const et: EnemyType = {
 		kind: stats.kind,
 		bounty: stats.bounty,

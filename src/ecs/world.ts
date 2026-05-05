@@ -24,6 +24,15 @@ export class World {
 		}
 	}
 
+	reset(): void {
+		this.alive.clear();
+		this.stores.clear();
+		this.nextId = 1;
+		this.lives = 0;
+		this.gold = 0;
+		this.wave = 0;
+	}
+
 	hasEntity(entity: Entity): boolean {
 		return this.alive.has(entity);
 	}
