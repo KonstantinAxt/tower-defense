@@ -1,6 +1,6 @@
 import { play } from "./audio";
 import type { World } from "./ecs";
-import { BUILD_SLOTS } from "./level";
+import { BUILD_SLOTS, type Point } from "./level";
 import {
 	C_TOWER,
 	TOWER_DATA,
@@ -28,6 +28,7 @@ interface MenuOptions {
 	readonly menu: HTMLElement;
 	readonly hud: HudElements;
 	readonly world: World;
+	readonly pickPoint?: (e: MouseEvent) => Point | null;
 }
 
 let selectedSlot: number | null = null;
@@ -47,11 +48,11 @@ export function clearSelection(menu: HTMLElement): void {
 }
 
 export function attachUI(opts: MenuOptions): void {
-	const { canvas, menu, world } = opts;
+	const { canvas, menu, world, pickPoint } = opts;
 
 	canvas.addEventListener("click", (e) => {
-		const point = canvasPoint(canvas, e);
-		const slot = pickSlotAt(point);
+		const point = pickPoint ? pickPoint(e) : canvasPoint(canvas, e);
+		const slot = point === null ? null : pickSlotAt(point);
 		if (slot === null) {
 			selectedSlot = null;
 			renderMenu(opts);

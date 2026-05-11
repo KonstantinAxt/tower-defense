@@ -3,16 +3,21 @@ import {
 	MeshBasicMaterial,
 	PerspectiveCamera,
 	PlaneGeometry,
+	Raycaster,
 	Scene,
+	Vector2,
 	WebGLRenderer,
 } from "three";
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../../level";
+import { CANVAS_HEIGHT, CANVAS_WIDTH, type Point } from "../../level";
+import { gameFromWorldHit } from "./coords";
 
 export interface ThreeScene {
 	readonly renderer: WebGLRenderer;
 	readonly scene: Scene;
 	readonly camera: PerspectiveCamera;
+	readonly ground: Mesh;
 	render(): void;
+	pickGroundFromEvent(e: MouseEvent): Point | null;
 	dispose(): void;
 }
 
@@ -35,12 +40,27 @@ export function createThreeScene(canvas: HTMLCanvasElement): ThreeScene {
 	ground.position.set(CANVAS_WIDTH / 2, 0, CANVAS_HEIGHT / 2);
 	scene.add(ground);
 
+	const raycaster = new Raycaster();
+	const ndc = new Vector2();
+
 	return {
 		renderer,
 		scene,
 		camera,
+		ground,
 		render() {
 			renderer.render(scene, camera);
+		},
+		pickGroundFromEvent(e: MouseEvent): Point | null {
+			const rect = canvas.getBoundingClientRect();
+			if (rect.width === 0 || rect.height === 0) return null;
+			ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+			ndc.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+			raycaster.setFromCamera(ndc, camera);
+			const hits = raycaster.intersectObject(ground, false);
+			const hit = hits[0];
+			if (!hit) return null;
+			return gameFromWorldHit(hit.point);
 		},
 		dispose() {
 			groundGeometry.dispose();
