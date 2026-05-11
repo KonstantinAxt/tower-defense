@@ -1,8 +1,10 @@
+import { loadModels } from "./assets/loader3d";
 import { attachAutoResume, play, setMuted } from "./audio";
 import { SystemRunner, World } from "./ecs";
 import { movementSystem } from "./enemies";
 import { Loop } from "./loop";
 import { clearParticles, updateParticles } from "./particles";
+import { createNeutralRenderer } from "./render/three/neutral";
 import { createThreeScene } from "./render/three/scene";
 import { type StorageLike, deserialize, loadFromStorage, saveToStorage, serialize } from "./save";
 import {
@@ -76,6 +78,8 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 	systems.add((_w, dt) => updateParticles(dt));
 
 	const threeScene = createThreeScene(canvasEl);
+	const models = await loadModels();
+	const neutralRenderer = createNeutralRenderer(threeScene.scene, models);
 
 	attachUI({
 		canvas: canvasEl,
@@ -88,6 +92,7 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 	const loop = new Loop(
 		(dt) => systems.run(world, dt),
 		() => {
+			neutralRenderer.update(world);
 			threeScene.render();
 			updateHud(hud, world);
 			updateControls();

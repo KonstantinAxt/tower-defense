@@ -1,6 +1,8 @@
 import {
+	AmbientLight,
+	DirectionalLight,
 	Mesh,
-	MeshBasicMaterial,
+	MeshStandardMaterial,
 	PerspectiveCamera,
 	PlaneGeometry,
 	Raycaster,
@@ -34,11 +36,18 @@ export function createThreeScene(canvas: HTMLCanvasElement): ThreeScene {
 	camera.lookAt(CANVAS_WIDTH / 2, 0, CANVAS_HEIGHT / 2);
 
 	const groundGeometry = new PlaneGeometry(CANVAS_WIDTH, CANVAS_HEIGHT);
-	const groundMaterial = new MeshBasicMaterial({ color: 0x3a5a3a });
+	const groundMaterial = new MeshStandardMaterial({ color: 0x3a5a3a });
 	const ground = new Mesh(groundGeometry, groundMaterial);
 	ground.rotation.x = -Math.PI / 2;
 	ground.position.set(CANVAS_WIDTH / 2, 0, CANVAS_HEIGHT / 2);
 	scene.add(ground);
+
+	scene.add(new AmbientLight(0xffffff, 0.55));
+	const sun = new DirectionalLight(0xffffff, 0.85);
+	sun.position.set(CANVAS_WIDTH / 2 - 200, 600, CANVAS_HEIGHT / 2 - 200);
+	sun.target.position.set(CANVAS_WIDTH / 2, 0, CANVAS_HEIGHT / 2);
+	scene.add(sun);
+	scene.add(sun.target);
 
 	const raycaster = new Raycaster();
 	const ndc = new Vector2();
