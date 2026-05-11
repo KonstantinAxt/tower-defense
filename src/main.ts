@@ -4,8 +4,8 @@ import { SystemRunner, World } from "./ecs";
 import { movementSystem } from "./enemies";
 import { Loop } from "./loop";
 import { clearParticles, updateParticles } from "./particles";
-import { createNeutralRenderer } from "./render/three/neutral";
 import { createThreeScene } from "./render/three/scene";
+import { createDefaultRegistry, readUiParam } from "./render/variants";
 import { type StorageLike, deserialize, loadFromStorage, saveToStorage, serialize } from "./save";
 import {
 	C_TOWER,
@@ -79,7 +79,24 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 
 	const threeScene = createThreeScene(canvasEl);
 	const models = await loadModels();
-	const neutralRenderer = createNeutralRenderer(threeScene.scene, models);
+
+	const registry = createDefaultRegistry();
+	const requestedUi = typeof window !== "undefined" ? readUiParam(window.location.search) : null;
+	const variantId = registry.resolve(requestedUi);
+	const variant = registry.create(variantId, {
+		scene: threeScene.scene,
+		renderer: threeScene.renderer,
+		camera: threeScene.camera,
+		canvas: canvasEl,
+		hud,
+		menu: menuEl,
+		models,
+	});
+	variant.applyMaterials?.();
+	variant.setupLighting?.();
+	variant.setupPostprocess?.();
+	variant.mountHud?.();
+	variant.mountBuildMenu?.();
 
 	attachUI({
 		canvas: canvasEl,
@@ -92,7 +109,7 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 	const loop = new Loop(
 		(dt) => systems.run(world, dt),
 		() => {
-			neutralRenderer.update(world);
+			variant.update(world);
 			threeScene.render();
 			updateHud(hud, world);
 			updateControls();
