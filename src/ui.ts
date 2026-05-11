@@ -31,6 +31,13 @@ interface MenuOptions {
 	readonly pickPoint?: (e: MouseEvent) => Point | null;
 }
 
+export interface UiController {
+	selectSlot(slotIndex: number | null): void;
+	closeMenu(): void;
+	getSelectedSlot(): number | null;
+	rerender(): void;
+}
+
 let selectedSlot: number | null = null;
 
 export function getSelectedSlot(): number | null {
@@ -47,7 +54,7 @@ export function clearSelection(menu: HTMLElement): void {
 	menu.classList.remove("open");
 }
 
-export function attachUI(opts: MenuOptions): void {
+export function attachUI(opts: MenuOptions): UiController {
 	const { canvas, menu, world, pickPoint } = opts;
 
 	canvas.addEventListener("click", (e) => {
@@ -89,6 +96,27 @@ export function attachUI(opts: MenuOptions): void {
 	});
 
 	renderMenu(opts);
+
+	return {
+		selectSlot(slotIndex) {
+			if (slotIndex !== null && !BUILD_SLOTS[slotIndex]) {
+				selectedSlot = null;
+			} else {
+				selectedSlot = slotIndex;
+			}
+			renderMenu(opts);
+		},
+		closeMenu() {
+			selectedSlot = null;
+			renderMenu(opts);
+		},
+		getSelectedSlot() {
+			return selectedSlot;
+		},
+		rerender() {
+			renderMenu(opts);
+		},
+	};
 }
 
 export function updateHud(hud: HudElements, world: World): void {

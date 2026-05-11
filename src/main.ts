@@ -6,10 +6,20 @@ import { Loop } from "./loop";
 import { clearParticles, updateParticles } from "./particles";
 import { createThreeScene } from "./render/three/scene";
 import { createDefaultRegistry, readUiParam } from "./render/variants";
-import { type StorageLike, deserialize, loadFromStorage, saveToStorage, serialize } from "./save";
+import {
+	SAVE_KEY,
+	type StorageLike,
+	deserialize,
+	loadFromStorage,
+	saveToStorage,
+	serialize,
+} from "./save";
 import {
 	C_TOWER,
 	type Tower,
+	type TowerKind,
+	buildTower,
+	findTowerAtSlot,
 	projectileSystem,
 	towerSystem,
 	towerUpgradeCost,
@@ -98,7 +108,7 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 	variant.mountHud?.();
 	variant.mountBuildMenu?.();
 
-	attachUI({
+	const uiController = attachUI({
 		canvas: canvasEl,
 		menu: menuEl,
 		hud,
@@ -206,31 +216,165 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 	requestAnimationFrame(tick);
 
 	if (import.meta.env.DEV) {
+		const startWaveViaApi = (): boolean => {
+			if (!controller.canStart()) return false;
+			const ok = controller.startWave(world);
+			if (ok) {
+				clearSelection(menuEl);
+				lastWaveState = controller.state;
+				play("waveStart");
+			}
+			return ok;
+		};
+		const upgradeAffordable = (): number => {
+			let count = 0;
+			for (const e of world.query(C_TOWER)) {
+				const tower = world.getComponent<Tower>(e, C_TOWER);
+				if (!tower) continue;
+				const cost = towerUpgradeCost(tower);
+				if (cost === null || world.gold < cost) continue;
+				if (upgradeTower(world, e)) count++;
+			}
+			return count;
+		};
+		// `window.__td.testApi` — state-based test surface for E2E.
+		// Drives the game directly through gameplay code rather than synthetic
+		// canvas/pointer events. Exposed only in dev builds.
+		//
+		// Methods:
+		//   clickSlot(index)              — open the build/upgrade menu for a slot
+		//   buyTower(slotIndex, kind)     — build a tower at a slot (returns ok)
+		//   upgradeTowerAt(slotIndex)     — upgrade the tower at a slot (returns ok)
+		//   closeMenu()                   — close the build menu
+		//   startWave()                   — start the next wave (returns ok)
+		//   pause() / resume() / isPaused()
+		//   setSpeed(multiplier)          — time-acceleration hook (>0)
+		//   getSpeed()
+		//   save() / load() / clearSave()
+		//   restart()
+		//   upgradeAffordable()           — best-effort upgrade pass for autoplay
+		//   getState()                    — snapshot of controller/world state
+		const testApi: TestApi = {
+			clickSlot(slotIndex) {
+				uiController.selectSlot(slotIndex);
+			},
+			buyTower(slotIndex, kind) {
+				const built = buildTower(world, kind, slotIndex);
+				if (built !== null) {
+					play("build");
+					uiController.rerender();
+					return true;
+				}
+				return false;
+			},
+			upgradeTowerAt(slotIndex) {
+				const entity = findTowerAtSlot(world, slotIndex);
+				if (entity === null) return false;
+				const ok = upgradeTower(world, entity);
+				if (ok) {
+					play("upgrade");
+					uiController.rerender();
+				}
+				return ok;
+			},
+			closeMenu() {
+				uiController.closeMenu();
+			},
+			startWave: startWaveViaApi,
+			pause() {
+				if (!loop.isPaused()) {
+					loop.pause();
+					setMuted(true);
+				}
+			},
+			resume() {
+				if (loop.isPaused()) {
+					loop.resume();
+					setMuted(false);
+				}
+			},
+			isPaused() {
+				return loop.isPaused();
+			},
+			setSpeed(multiplier) {
+				loop.setSpeed(multiplier);
+			},
+			getSpeed() {
+				return loop.getSpeed();
+			},
+			save() {
+				if (!storage) return false;
+				if (controller.state !== "idle" || controller.currentWave > TOTAL_WAVES) return false;
+				saveToStorage(serialize(world, controller), storage);
+				return true;
+			},
+			load() {
+				if (!storage) return false;
+				if (controller.state !== "idle" || controller.currentWave > TOTAL_WAVES) return false;
+				const snap = loadFromStorage(storage);
+				if (!snap) return false;
+				deserialize(world, controller, snap);
+				clearSelection(menuEl);
+				return true;
+			},
+			clearSave() {
+				if (!storage) return;
+				storage.removeItem(SAVE_KEY);
+			},
+			restart,
+			upgradeAffordable,
+			getState() {
+				return {
+					state: controller.state,
+					currentWave: controller.currentWave,
+					gold: world.gold,
+					lives: world.lives,
+					wave: world.wave,
+					towers: world.query(C_TOWER).length,
+				};
+			},
+		};
+
 		(window as unknown as { __td: TestHandle }).__td = {
 			world,
 			controller,
 			loop,
 			restart,
 			startWave: () => {
-				if (controller.canStart()) {
-					controller.startWave(world);
-					clearSelection(menuEl);
-					lastWaveState = controller.state;
-				}
+				startWaveViaApi();
 			},
-			upgradeAffordable: () => {
-				let count = 0;
-				for (const e of world.query(C_TOWER)) {
-					const tower = world.getComponent<Tower>(e, C_TOWER);
-					if (!tower) continue;
-					const cost = towerUpgradeCost(tower);
-					if (cost === null || world.gold < cost) continue;
-					if (upgradeTower(world, e)) count++;
-				}
-				return count;
-			},
+			upgradeAffordable,
+			testApi,
 		};
 	}
+}
+
+interface TestApiState {
+	state: WaveState;
+	currentWave: number;
+	gold: number;
+	lives: number;
+	wave: number;
+	towers: number;
+}
+
+interface TestApi {
+	clickSlot(slotIndex: number | null): void;
+	buyTower(slotIndex: number, kind: TowerKind): boolean;
+	upgradeTowerAt(slotIndex: number): boolean;
+	closeMenu(): void;
+	startWave(): boolean;
+	pause(): void;
+	resume(): void;
+	isPaused(): boolean;
+	setSpeed(multiplier: number): void;
+	getSpeed(): number;
+	save(): boolean;
+	load(): boolean;
+	clearSave(): void;
+	restart(): void;
+	upgradeAffordable(): number;
+	getState(): TestApiState;
 }
 
 interface TestHandle {
@@ -240,6 +384,7 @@ interface TestHandle {
 	restart: () => void;
 	startWave: () => void;
 	upgradeAffordable: () => number;
+	testApi: TestApi;
 }
 
 function toggleModal(modal: HTMLElement, open: boolean): void {
