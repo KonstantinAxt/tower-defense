@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { PerspectiveCamera, Scene, type WebGLRenderer } from "three";
+import { type Mesh, PerspectiveCamera, Scene, type WebGLRenderer } from "three";
 import type { ModelMap } from "../../assets/loader3d";
 import { World } from "../../ecs";
 import { spawnEnemy } from "../../enemies";
@@ -22,14 +22,18 @@ function makeContext(): VariantContext {
 	// jsdom-less environment lacks; cast a minimal stub since the neutral
 	// variant never reads from it.
 	const renderer = {} as unknown as WebGLRenderer;
-	return { scene, camera, canvas, hud, menu, renderer, models: EMPTY_MODELS };
+	const ground = { material: {}, visible: true } as unknown as Mesh;
+	return { scene, camera, canvas, hud, menu, renderer, models: EMPTY_MODELS, ground };
 }
 
 describe("neutral variant via default registry", () => {
-	test("default registry exposes neutral and resolves it as fallback", () => {
+	test("default registry exposes neutral and routes unknown requests to it", () => {
 		const registry = createDefaultRegistry({ warn: () => {} });
 		expect(registry.has("neutral")).toBe(true);
-		expect(registry.resolve(null)).toBe("neutral");
+		// `A` is the default once the holographic variant is registered.
+		expect(registry.resolve(null)).toBe("A");
+		// Unknown ids still fall back to neutral.
+		expect(registry.resolve("Z")).toBe("neutral");
 	});
 
 	test("neutral variant attaches the renderer root and tracks ECS state", () => {

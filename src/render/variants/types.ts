@@ -1,4 +1,4 @@
-import type { PerspectiveCamera, Scene, WebGLRenderer } from "three";
+import type { Mesh, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 import type { ModelMap } from "../../assets/loader3d";
 import type { World } from "../../ecs";
 
@@ -32,6 +32,9 @@ export interface VariantContext {
 	readonly hud: VariantHud;
 	readonly menu: HTMLElement;
 	readonly models: ModelMap;
+	// The base ground plane added by `createThreeScene`. Variants may swap its
+	// material (e.g. cyan grid for holographic) or hide it and draw their own.
+	readonly ground: Mesh;
 }
 
 // A `VariantModule` is the shape A/B/C and `neutral` all conform to. The
@@ -48,6 +51,10 @@ export interface VariantModule {
 	mountBuildMenu?(): void;
 	spawnParticles?(event: ParticleEvent): void;
 	update(world: World): void;
+	// When defined, the host calls this each frame instead of the default
+	// `threeScene.render()`. Variants that wire up an EffectComposer use this
+	// hook so postprocess passes are part of the frame.
+	render?(): void;
 	dispose(): void;
 }
 
