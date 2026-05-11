@@ -3,6 +3,7 @@ import { SystemRunner, World } from "./ecs";
 import { movementSystem } from "./enemies";
 import { Loop } from "./loop";
 import { clearParticles, updateParticles } from "./particles";
+import { createThreeScene } from "./render/three/scene";
 import { type StorageLike, deserialize, loadFromStorage, saveToStorage, serialize } from "./save";
 import {
 	C_TOWER,
@@ -76,9 +77,12 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 
 	attachUI({ canvas: canvasEl, menu: menuEl, hud, world });
 
+	const threeScene = createThreeScene(canvasEl);
+
 	const loop = new Loop(
 		(dt) => systems.run(world, dt),
 		() => {
+			threeScene.render();
 			updateHud(hud, world);
 			updateControls();
 		},
