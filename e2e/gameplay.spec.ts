@@ -1,5 +1,6 @@
-import { type Page, expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { SAVE_KEY } from "../src/save";
+import { expect, test } from "./fixtures";
 
 const SLOT_LOADOUT: ReadonlyArray<{ slot: number; kind: "cannon" | "mg" | "mortar" }> = [
 	{ slot: 0, kind: "cannon" },
@@ -59,6 +60,7 @@ async function closeBuildMenu(page: Page): Promise<void> {
 test.describe("gameplay e2e", () => {
 	test("places towers, runs waves, save/loads, reaches win or substantial progress", async ({
 		page,
+		variant,
 	}) => {
 		const errors: string[] = [];
 		page.on("pageerror", (e) => errors.push(e.message));
@@ -66,7 +68,7 @@ test.describe("gameplay e2e", () => {
 			if (msg.type() === "error") errors.push(msg.text());
 		});
 
-		await page.goto("/");
+		await page.goto(`/?ui=${variant}`);
 		await waitForBoot(page);
 
 		// Start from a clean slate so a stale save from a previous run
