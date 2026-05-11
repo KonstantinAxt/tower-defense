@@ -1,4 +1,5 @@
-import { type Page, expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 async function waitForBoot(page: Page): Promise<void> {
 	await page.waitForFunction(
@@ -7,14 +8,14 @@ async function waitForBoot(page: Page): Promise<void> {
 	);
 }
 
-test("page loads, canvas mounts, and the test API is exposed", async ({ page }) => {
+test("page loads, canvas mounts, and the test API is exposed", async ({ page, variant }) => {
 	const errors: string[] = [];
 	page.on("pageerror", (e) => errors.push(e.message));
 	page.on("console", (msg) => {
 		if (msg.type() === "error") errors.push(msg.text());
 	});
 
-	await page.goto("/");
+	await page.goto(`/?ui=${variant}`);
 	await waitForBoot(page);
 
 	await expect(page.getByTestId("game-canvas")).toBeVisible();
