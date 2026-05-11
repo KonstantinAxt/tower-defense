@@ -101,6 +101,7 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 		hud,
 		menu: menuEl,
 		models,
+		ground: threeScene.ground,
 	});
 	variant.applyMaterials?.();
 	variant.setupLighting?.();
@@ -120,7 +121,8 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 		(dt) => systems.run(world, dt),
 		() => {
 			variant.update(world);
-			threeScene.render();
+			if (variant.render) variant.render();
+			else threeScene.render();
 			updateHud(hud, world);
 			updateControls();
 		},
