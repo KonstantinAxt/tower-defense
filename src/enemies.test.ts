@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import type { SpriteMap } from "./assets/loader";
 import { World } from "./ecs";
 import {
 	C_ENEMY_TYPE,
@@ -14,7 +13,6 @@ import {
 	type Position,
 	type Velocity,
 	movementSystem,
-	renderEnemies,
 	spawnEnemy,
 } from "./enemies";
 import { PATH, PATH_TOTAL_LENGTH } from "./level";
@@ -140,73 +138,3 @@ describe("movementSystem", () => {
 		expect(world.entityCount()).toBe(0);
 	});
 });
-
-describe("renderEnemies", () => {
-	test("draws a sprite and an HP bar for each enemy", () => {
-		const world = new World();
-		spawnEnemy(world, "fast");
-		const { ctx, calls } = makeStubCtx();
-		renderEnemies(ctx, world, new Map() as SpriteMap);
-		// With no sprite image available, renderEnemies falls back to a
-		// primitive circle (beginPath/arc/fill). An HP bar is composed of
-		// several fillRect calls.
-		expect(calls.arc).toBeGreaterThan(0);
-		expect(calls.fillRect).toBeGreaterThanOrEqual(3);
-	});
-
-	test("HP bar width shrinks as hp drops", () => {
-		const world = new World();
-		const entity = spawnEnemy(world, "heavy");
-		const health = world.getComponent<Health>(entity, C_HEALTH);
-		if (!health) throw new Error("unreachable");
-		health.hp = Math.floor(health.max / 4);
-
-		const { ctx, rects } = makeStubCtx();
-		renderEnemies(ctx, world, new Map() as SpriteMap);
-		// Widths recorded for all fillRect calls. The HP bar fill (last
-		// bar drawn) should be less than a full bar (34 px).
-		const maxWidth = Math.max(...rects.map((r) => r.w));
-		expect(maxWidth).toBeLessThanOrEqual(36);
-		const fillWidths = rects.map((r) => r.w);
-		// At 25% hp, the foreground fill is ~8.5 px (34 * 0.25).
-		expect(fillWidths.some((w) => w > 0 && w < 15)).toBe(true);
-	});
-});
-
-interface StubCounters {
-	fillRect: number;
-	arc: number;
-	drawImage: number;
-}
-
-interface StubCtx {
-	ctx: CanvasRenderingContext2D;
-	calls: StubCounters;
-	rects: Array<{ x: number; y: number; w: number; h: number }>;
-}
-
-function makeStubCtx(): StubCtx {
-	const calls: StubCounters = { fillRect: 0, arc: 0, drawImage: 0 };
-	const rects: Array<{ x: number; y: number; w: number; h: number }> = [];
-	const ctx = {
-		fillStyle: "" as string | CanvasPattern,
-		strokeStyle: "" as string | CanvasPattern,
-		lineWidth: 0,
-		save: () => {},
-		restore: () => {},
-		beginPath: () => {},
-		arc: () => {
-			calls.arc++;
-		},
-		fill: () => {},
-		stroke: () => {},
-		fillRect: (x: number, y: number, w: number, h: number) => {
-			calls.fillRect++;
-			rects.push({ x, y, w, h });
-		},
-		drawImage: () => {
-			calls.drawImage++;
-		},
-	};
-	return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, rects };
-}

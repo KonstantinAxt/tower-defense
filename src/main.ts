@@ -1,22 +1,18 @@
-import { loadSprites } from "./assets/loader";
 import { attachAutoResume, play, setMuted } from "./audio";
 import { SystemRunner, World } from "./ecs";
-import { movementSystem, renderEnemies } from "./enemies";
+import { movementSystem } from "./enemies";
 import { Loop } from "./loop";
-import { clearParticles, renderParticles, updateParticles } from "./particles";
-import { renderScene } from "./render/scene";
+import { clearParticles, updateParticles } from "./particles";
 import { type StorageLike, deserialize, loadFromStorage, saveToStorage, serialize } from "./save";
 import {
 	C_TOWER,
 	type Tower,
 	projectileSystem,
-	renderProjectiles,
-	renderTowers,
 	towerSystem,
 	towerUpgradeCost,
 	upgradeTower,
 } from "./towers";
-import { attachUI, clearSelection, getSelectedSlot, updateHud } from "./ui";
+import { attachUI, clearSelection, updateHud } from "./ui";
 import { TOTAL_WAVES, WaveController, type WaveState } from "./waves";
 
 const STARTING_LIVES = 20;
@@ -24,9 +20,6 @@ const STARTING_GOLD = 250;
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 if (!canvas) throw new Error("#game canvas not found");
-
-const ctx = canvas.getContext("2d");
-if (!ctx) throw new Error("2d context unavailable");
 
 const menu = document.querySelector<HTMLElement>("#build-menu");
 if (!menu) throw new Error("#build-menu not found");
@@ -57,12 +50,7 @@ function resetWorld(world: World): void {
 	world.wave = 1;
 }
 
-async function boot(
-	ctx2d: CanvasRenderingContext2D,
-	canvasEl: HTMLCanvasElement,
-	menuEl: HTMLElement,
-): Promise<void> {
-	const sprites = await loadSprites();
+async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<void> {
 	const world = new World();
 	resetWorld(world);
 
@@ -90,12 +78,7 @@ async function boot(
 
 	const loop = new Loop(
 		(dt) => systems.run(world, dt),
-		(_alpha) => {
-			renderScene(ctx2d, sprites);
-			renderTowers(ctx2d, world, sprites, getSelectedSlot());
-			renderProjectiles(ctx2d, world, sprites);
-			renderEnemies(ctx2d, world, sprites);
-			renderParticles(ctx2d);
+		() => {
 			updateHud(hud, world);
 			updateControls();
 		},
@@ -232,4 +215,4 @@ function toggleModal(modal: HTMLElement, open: boolean): void {
 	else modal.classList.remove("open");
 }
 
-void boot(ctx, canvas, menu);
+void boot(canvas, menu);

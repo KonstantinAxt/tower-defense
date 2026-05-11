@@ -1,35 +1,29 @@
 {
-  "provider": "bedrock",
-  "models": {
-    "reviewer": "claude-opus-4-7",
-    "questioner": "claude-opus-4-7",
-    "worker": "claude-sonnet-4-6"
-  },
-  "run": {
-    "maxParallel": 4,
-    "maxTurns": 120
-  },
-  "budgets": {
-    "planning": 60000,
-    "research": 25000,
-    "code": 30000,
-    "refactor": 20000,
-    "write": 15000,
-    "other": 15000,
-    "total": 400000
-  },
-  "feedbackLoops": {
-    "scope": "repo",
-    "commands": [
-      "bun run typecheck",
-      "bun run test",
-      "bun run lint"
-    ]
-  },
-  "sevenTrees": {
-    "domain": "td",
-    "copyFiles": [
-      ".env.local"
-    ]
-  }
+	"provider": "bedrock",
+	"models": {
+		"reviewer": "claude-opus-4-7",
+		"questioner": "claude-opus-4-7",
+		"worker": "claude-sonnet-4-6"
+	},
+	"run": {
+		"maxParallel": 4,
+		"maxTurns": 120
+	},
+	"budgets": {
+		"planning": 60000,
+		"research": 25000,
+		"code": 30000,
+		"refactor": 20000,
+		"write": 15000,
+		"other": 15000,
+		"total": 400000
+	},
+	"feedbackLoops": {
+		"scope": "repo",
+		"commands": ["bun run typecheck", "bun run test", "bun run lint"]
+	},
+	"sevenTrees": {
+		"domain": "td",
+		"copyFiles": [".env.local"]
+	}
 }
