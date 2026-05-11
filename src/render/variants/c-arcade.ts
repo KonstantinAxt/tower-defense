@@ -94,11 +94,6 @@ interface Spark {
 }
 
 export function createArcadeVariant(ctx: VariantContext): VariantModule {
-	const reducedMotion =
-		typeof window !== "undefined" && typeof window.matchMedia === "function"
-			? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-			: false;
-
 	const root = new Group();
 	root.name = "c-arcade-root";
 	ctx.scene.add(root);
@@ -240,7 +235,9 @@ export function createArcadeVariant(ctx: VariantContext): VariantModule {
 	}
 
 	function setupPostprocess(): void {
-		if (reducedMotion) return;
+		// Per design doc: outline pass is visual, not motion — keep it on
+		// even when `prefers-reduced-motion` is set. Reduced-motion behavior
+		// is handled in the CSS keyframes (HUD pop / wheel spin collapse).
 		try {
 			const gl = (ctx.renderer as unknown as { getContext?: () => unknown }).getContext?.();
 			if (!gl) return;
