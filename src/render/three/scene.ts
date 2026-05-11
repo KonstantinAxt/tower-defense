@@ -19,7 +19,7 @@ export interface ThreeScene {
 export function createThreeScene(canvas: HTMLCanvasElement): ThreeScene {
 	const renderer = new WebGLRenderer({ canvas, antialias: true });
 	renderer.setPixelRatio(typeof window !== "undefined" ? window.devicePixelRatio : 1);
-	renderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT, false);
+	renderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT);
 	renderer.setClearColor(0x202428);
 
 	const scene = new Scene();
