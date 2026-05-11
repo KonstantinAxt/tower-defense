@@ -75,9 +75,15 @@ async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<v
 	systems.add(projectileSystem);
 	systems.add((_w, dt) => updateParticles(dt));
 
-	attachUI({ canvas: canvasEl, menu: menuEl, hud, world });
-
 	const threeScene = createThreeScene(canvasEl);
+
+	attachUI({
+		canvas: canvasEl,
+		menu: menuEl,
+		hud,
+		world,
+		pickPoint: (e) => threeScene.pickGroundFromEvent(e),
+	});
 
 	const loop = new Loop(
 		(dt) => systems.run(world, dt),
