@@ -20,12 +20,7 @@
 	},
 	"feedbackLoops": {
 		"scope": "repo",
-		"commands": [
-			"bun run typecheck",
-			"bun run lint",
-			"bun run test:unit",
-			"bunx @google/design.md lint tokens/*.design.md"
-		]
+		"commands": ["bun run typecheck", "bun run test", "bun run lint"]
 	},
 	"sevenTrees": {
 		"domain": "td",

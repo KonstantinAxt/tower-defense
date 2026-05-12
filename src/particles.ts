@@ -136,6 +136,28 @@ function makeDeadParticle(): Particle {
 
 // ---- module-level singleton + emitters --------------------------------------
 
+// Variant-facing particle event. The 2D pool above is kept for backwards
+// compatibility, but variants subscribe via `setParticleEffectListener` and
+// render their own visualization (3D bursts, glitch sparks, etc.). One
+// listener at a time is sufficient — the active variant owns it.
+export type ParticleEffectKind = "muzzle" | "impact" | "explosion" | "death";
+export interface ParticleEffect {
+	readonly kind: ParticleEffectKind;
+	readonly x: number;
+	readonly y: number;
+}
+export type ParticleEffectListener = (event: ParticleEffect) => void;
+
+let particleEffectListener: ParticleEffectListener | null = null;
+
+export function setParticleEffectListener(fn: ParticleEffectListener | null): void {
+	particleEffectListener = fn;
+}
+
+function notifyParticleEffect(event: ParticleEffect): void {
+	if (particleEffectListener) particleEffectListener(event);
+}
+
 const globalSystem = new ParticleSystem();
 
 export function getParticleSystem(): ParticleSystem {
@@ -161,6 +183,7 @@ function rand(min: number, max: number): number {
 // Muzzle flash: a few short, fast yellow sparks aimed roughly toward the
 // target, plus a bright core.
 export function emitMuzzleFlash(x: number, y: number, dirX: number, dirY: number, scale = 1): void {
+	notifyParticleEffect({ kind: "muzzle", x, y });
 	const len = Math.hypot(dirX, dirY) || 1;
 	const nx = dirX / len;
 	const ny = dirY / len;
@@ -197,6 +220,7 @@ export function emitMuzzleFlash(x: number, y: number, dirX: number, dirY: number
 
 // Impact spark: small light burst when a projectile hits.
 export function emitImpact(x: number, y: number): void {
+	notifyParticleEffect({ kind: "impact", x, y });
 	for (let i = 0; i < 8; i++) {
 		const angle = rand(0, Math.PI * 2);
 		const speed = rand(60, 160);
@@ -216,6 +240,7 @@ export function emitImpact(x: number, y: number): void {
 
 // Mortar explosion: chunky orange/red ring with smoke.
 export function emitExplosion(x: number, y: number, radius: number): void {
+	notifyParticleEffect({ kind: "explosion", x, y });
 	const sparks = Math.min(40, Math.max(16, Math.floor(radius * 0.6)));
 	for (let i = 0; i < sparks; i++) {
 		const angle = rand(0, Math.PI * 2);
@@ -264,6 +289,7 @@ export function emitExplosion(x: number, y: number, radius: number): void {
 
 // Enemy death burst: multi-color radial scatter.
 export function emitDeathBurst(x: number, y: number, color = "#e24646"): void {
+	notifyParticleEffect({ kind: "death", x, y });
 	for (let i = 0; i < 14; i++) {
 		const angle = rand(0, Math.PI * 2);
 		const speed = rand(60, 180);

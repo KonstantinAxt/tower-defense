@@ -18,3 +18,5 @@ dist
 # Kenney assets are re-downloadable CC0 — don't bloat the repo
 /assets/kenney/*
 !/assets/kenney/.gitkeep
+.claude/skills/
+.weave/runs/

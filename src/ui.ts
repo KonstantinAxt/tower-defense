@@ -1,6 +1,6 @@
 import { play } from "./audio";
 import type { World } from "./ecs";
-import { BUILD_SLOTS } from "./level";
+import { BUILD_SLOTS, type Point } from "./level";
 import {
 	C_TOWER,
 	TOWER_DATA,
@@ -28,6 +28,14 @@ interface MenuOptions {
 	readonly menu: HTMLElement;
 	readonly hud: HudElements;
 	readonly world: World;
+	readonly pickPoint?: (e: MouseEvent) => Point | null;
+}
+
+export interface UiController {
+	selectSlot(slotIndex: number | null): void;
+	closeMenu(): void;
+	getSelectedSlot(): number | null;
+	rerender(): void;
 }
 
 let selectedSlot: number | null = null;
@@ -46,12 +54,12 @@ export function clearSelection(menu: HTMLElement): void {
 	menu.classList.remove("open");
 }
 
-export function attachUI(opts: MenuOptions): void {
-	const { canvas, menu, world } = opts;
+export function attachUI(opts: MenuOptions): UiController {
+	const { canvas, menu, world, pickPoint } = opts;
 
 	canvas.addEventListener("click", (e) => {
-		const point = canvasPoint(canvas, e);
-		const slot = pickSlotAt(point);
+		const point = pickPoint ? pickPoint(e) : canvasPoint(canvas, e);
+		const slot = point === null ? null : pickSlotAt(point);
 		if (slot === null) {
 			selectedSlot = null;
 			renderMenu(opts);
@@ -88,6 +96,27 @@ export function attachUI(opts: MenuOptions): void {
 	});
 
 	renderMenu(opts);
+
+	return {
+		selectSlot(slotIndex) {
+			if (slotIndex !== null && !BUILD_SLOTS[slotIndex]) {
+				selectedSlot = null;
+			} else {
+				selectedSlot = slotIndex;
+			}
+			renderMenu(opts);
+		},
+		closeMenu() {
+			selectedSlot = null;
+			renderMenu(opts);
+		},
+		getSelectedSlot() {
+			return selectedSlot;
+		},
+		rerender() {
+			renderMenu(opts);
+		},
+	};
 }
 
 export function updateHud(hud: HudElements, world: World): void {

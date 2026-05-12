@@ -1,22 +1,31 @@
-import { loadSprites } from "./assets/loader";
+import { loadModels } from "./assets/loader3d";
 import { attachAutoResume, play, setMuted } from "./audio";
 import { SystemRunner, World } from "./ecs";
-import { movementSystem, renderEnemies } from "./enemies";
+import { movementSystem } from "./enemies";
 import { Loop } from "./loop";
-import { clearParticles, renderParticles, updateParticles } from "./particles";
-import { renderScene } from "./render/scene";
-import { type StorageLike, deserialize, loadFromStorage, saveToStorage, serialize } from "./save";
+import { clearParticles, updateParticles } from "./particles";
+import { createThreeScene } from "./render/three/scene";
+import { createDefaultRegistry, readUiParam } from "./render/variants";
+import {
+	SAVE_KEY,
+	type StorageLike,
+	deserialize,
+	loadFromStorage,
+	saveToStorage,
+	serialize,
+} from "./save";
 import {
 	C_TOWER,
 	type Tower,
+	type TowerKind,
+	buildTower,
+	findTowerAtSlot,
 	projectileSystem,
-	renderProjectiles,
-	renderTowers,
 	towerSystem,
 	towerUpgradeCost,
 	upgradeTower,
 } from "./towers";
-import { attachUI, clearSelection, getSelectedSlot, updateHud } from "./ui";
+import { attachUI, clearSelection, updateHud } from "./ui";
 import { TOTAL_WAVES, WaveController, type WaveState } from "./waves";
 
 const STARTING_LIVES = 20;
@@ -24,9 +33,6 @@ const STARTING_GOLD = 250;
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 if (!canvas) throw new Error("#game canvas not found");
-
-const ctx = canvas.getContext("2d");
-if (!ctx) throw new Error("2d context unavailable");
 
 const menu = document.querySelector<HTMLElement>("#build-menu");
 if (!menu) throw new Error("#build-menu not found");
@@ -57,12 +63,7 @@ function resetWorld(world: World): void {
 	world.wave = 1;
 }
 
-async function boot(
-	ctx2d: CanvasRenderingContext2D,
-	canvasEl: HTMLCanvasElement,
-	menuEl: HTMLElement,
-): Promise<void> {
-	const sprites = await loadSprites();
+async function boot(canvasEl: HTMLCanvasElement, menuEl: HTMLElement): Promise<void> {
 	const world = new World();
 	resetWorld(world);
 
@@ -86,16 +87,42 @@ async function boot(
 	systems.add(projectileSystem);
 	systems.add((_w, dt) => updateParticles(dt));
 
-	attachUI({ canvas: canvasEl, menu: menuEl, hud, world });
+	const threeScene = createThreeScene(canvasEl);
+	const models = await loadModels();
+
+	const registry = createDefaultRegistry();
+	const requestedUi = typeof window !== "undefined" ? readUiParam(window.location.search) : null;
+	const variantId = registry.resolve(requestedUi);
+	const variant = registry.create(variantId, {
+		scene: threeScene.scene,
+		renderer: threeScene.renderer,
+		camera: threeScene.camera,
+		canvas: canvasEl,
+		hud,
+		menu: menuEl,
+		models,
+		ground: threeScene.ground,
+	});
+	variant.applyMaterials?.();
+	variant.setupLighting?.();
+	variant.setupPostprocess?.();
+	variant.mountHud?.();
+	variant.mountBuildMenu?.();
+
+	const uiController = attachUI({
+		canvas: canvasEl,
+		menu: menuEl,
+		hud,
+		world,
+		pickPoint: (e) => threeScene.pickGroundFromEvent(e),
+	});
 
 	const loop = new Loop(
 		(dt) => systems.run(world, dt),
-		(_alpha) => {
-			renderScene(ctx2d, sprites);
-			renderTowers(ctx2d, world, sprites, getSelectedSlot());
-			renderProjectiles(ctx2d, world, sprites);
-			renderEnemies(ctx2d, world, sprites);
-			renderParticles(ctx2d);
+		() => {
+			variant.update(world);
+			if (variant.render) variant.render();
+			else threeScene.render();
 			updateHud(hud, world);
 			updateControls();
 		},
@@ -191,31 +218,165 @@ async function boot(
 	requestAnimationFrame(tick);
 
 	if (import.meta.env.DEV) {
+		const startWaveViaApi = (): boolean => {
+			if (!controller.canStart()) return false;
+			const ok = controller.startWave(world);
+			if (ok) {
+				clearSelection(menuEl);
+				lastWaveState = controller.state;
+				play("waveStart");
+			}
+			return ok;
+		};
+		const upgradeAffordable = (): number => {
+			let count = 0;
+			for (const e of world.query(C_TOWER)) {
+				const tower = world.getComponent<Tower>(e, C_TOWER);
+				if (!tower) continue;
+				const cost = towerUpgradeCost(tower);
+				if (cost === null || world.gold < cost) continue;
+				if (upgradeTower(world, e)) count++;
+			}
+			return count;
+		};
+		// `window.__td.testApi` — state-based test surface for E2E.
+		// Drives the game directly through gameplay code rather than synthetic
+		// canvas/pointer events. Exposed only in dev builds.
+		//
+		// Methods:
+		//   clickSlot(index)              — open the build/upgrade menu for a slot
+		//   buyTower(slotIndex, kind)     — build a tower at a slot (returns ok)
+		//   upgradeTowerAt(slotIndex)     — upgrade the tower at a slot (returns ok)
+		//   closeMenu()                   — close the build menu
+		//   startWave()                   — start the next wave (returns ok)
+		//   pause() / resume() / isPaused()
+		//   setSpeed(multiplier)          — time-acceleration hook (>0)
+		//   getSpeed()
+		//   save() / load() / clearSave()
+		//   restart()
+		//   upgradeAffordable()           — best-effort upgrade pass for autoplay
+		//   getState()                    — snapshot of controller/world state
+		const testApi: TestApi = {
+			clickSlot(slotIndex) {
+				uiController.selectSlot(slotIndex);
+			},
+			buyTower(slotIndex, kind) {
+				const built = buildTower(world, kind, slotIndex);
+				if (built !== null) {
+					play("build");
+					uiController.rerender();
+					return true;
+				}
+				return false;
+			},
+			upgradeTowerAt(slotIndex) {
+				const entity = findTowerAtSlot(world, slotIndex);
+				if (entity === null) return false;
+				const ok = upgradeTower(world, entity);
+				if (ok) {
+					play("upgrade");
+					uiController.rerender();
+				}
+				return ok;
+			},
+			closeMenu() {
+				uiController.closeMenu();
+			},
+			startWave: startWaveViaApi,
+			pause() {
+				if (!loop.isPaused()) {
+					loop.pause();
+					setMuted(true);
+				}
+			},
+			resume() {
+				if (loop.isPaused()) {
+					loop.resume();
+					setMuted(false);
+				}
+			},
+			isPaused() {
+				return loop.isPaused();
+			},
+			setSpeed(multiplier) {
+				loop.setSpeed(multiplier);
+			},
+			getSpeed() {
+				return loop.getSpeed();
+			},
+			save() {
+				if (!storage) return false;
+				if (controller.state !== "idle" || controller.currentWave > TOTAL_WAVES) return false;
+				saveToStorage(serialize(world, controller), storage);
+				return true;
+			},
+			load() {
+				if (!storage) return false;
+				if (controller.state !== "idle" || controller.currentWave > TOTAL_WAVES) return false;
+				const snap = loadFromStorage(storage);
+				if (!snap) return false;
+				deserialize(world, controller, snap);
+				clearSelection(menuEl);
+				return true;
+			},
+			clearSave() {
+				if (!storage) return;
+				storage.removeItem(SAVE_KEY);
+			},
+			restart,
+			upgradeAffordable,
+			getState() {
+				return {
+					state: controller.state,
+					currentWave: controller.currentWave,
+					gold: world.gold,
+					lives: world.lives,
+					wave: world.wave,
+					towers: world.query(C_TOWER).length,
+				};
+			},
+		};
+
 		(window as unknown as { __td: TestHandle }).__td = {
 			world,
 			controller,
 			loop,
 			restart,
 			startWave: () => {
-				if (controller.canStart()) {
-					controller.startWave(world);
-					clearSelection(menuEl);
-					lastWaveState = controller.state;
-				}
+				startWaveViaApi();
 			},
-			upgradeAffordable: () => {
-				let count = 0;
-				for (const e of world.query(C_TOWER)) {
-					const tower = world.getComponent<Tower>(e, C_TOWER);
-					if (!tower) continue;
-					const cost = towerUpgradeCost(tower);
-					if (cost === null || world.gold < cost) continue;
-					if (upgradeTower(world, e)) count++;
-				}
-				return count;
-			},
+			upgradeAffordable,
+			testApi,
 		};
 	}
+}
+
+interface TestApiState {
+	state: WaveState;
+	currentWave: number;
+	gold: number;
+	lives: number;
+	wave: number;
+	towers: number;
+}
+
+interface TestApi {
+	clickSlot(slotIndex: number | null): void;
+	buyTower(slotIndex: number, kind: TowerKind): boolean;
+	upgradeTowerAt(slotIndex: number): boolean;
+	closeMenu(): void;
+	startWave(): boolean;
+	pause(): void;
+	resume(): void;
+	isPaused(): boolean;
+	setSpeed(multiplier: number): void;
+	getSpeed(): number;
+	save(): boolean;
+	load(): boolean;
+	clearSave(): void;
+	restart(): void;
+	upgradeAffordable(): number;
+	getState(): TestApiState;
 }
 
 interface TestHandle {
@@ -225,6 +386,7 @@ interface TestHandle {
 	restart: () => void;
 	startWave: () => void;
 	upgradeAffordable: () => number;
+	testApi: TestApi;
 }
 
 function toggleModal(modal: HTMLElement, open: boolean): void {
@@ -232,4 +394,4 @@ function toggleModal(modal: HTMLElement, open: boolean): void {
 	else modal.classList.remove("open");
 }
 
-void boot(ctx, canvas, menu);
+void boot(canvas, menu);

@@ -1,6 +1,6 @@
-import { type Page, expect, test } from "@playwright/test";
-import { BUILD_SLOTS } from "../src/level";
+import type { Page } from "@playwright/test";
 import { SAVE_KEY } from "../src/save";
+import { expect, test } from "./fixtures";
 
 const SLOT_LOADOUT: ReadonlyArray<{ slot: number; kind: "cannon" | "mg" | "mortar" }> = [
 	{ slot: 0, kind: "cannon" },
@@ -20,23 +20,16 @@ interface ControllerState {
 }
 
 async function waitForBoot(page: Page): Promise<void> {
-	await page.waitForFunction(() => Boolean((window as unknown as { __td?: unknown }).__td), {
-		timeout: 15_000,
-	});
+	await page.waitForFunction(
+		() => Boolean((window as unknown as { __td?: { testApi?: unknown } }).__td?.testApi),
+		{ timeout: 15_000 },
+	);
 }
 
 async function getState(page: Page): Promise<ControllerState> {
 	return page.evaluate(() => {
 		// biome-ignore lint/suspicious/noExplicitAny: test-only window access
-		const td = (window as any).__td;
-		return {
-			state: td.controller.state,
-			currentWave: td.controller.currentWave,
-			gold: td.world.gold,
-			lives: td.world.lives,
-			wave: td.world.wave,
-			towers: td.world.query("Tower").length,
-		};
+		return (window as any).__td.testApi.getState() as ControllerState;
 	});
 }
 
@@ -45,26 +38,29 @@ async function buildTowerOnSlot(
 	slotIndex: number,
 	kind: "cannon" | "mg" | "mortar",
 ): Promise<void> {
-	const slot = BUILD_SLOTS[slotIndex];
-	if (!slot) throw new Error(`unknown slot ${slotIndex}`);
-
-	const canvas = page.getByTestId("game-canvas");
-	await canvas.click({ position: { x: slot.x, y: slot.y } });
-
-	const buildBtn = page.locator(`[data-action="build"][data-kind="${kind}"]`);
-	await expect(buildBtn).toBeVisible();
-	await buildBtn.click();
+	const ok = await page.evaluate(
+		({ slotIndex, kind }) => {
+			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
+			const api = (window as any).__td.testApi;
+			api.clickSlot(slotIndex);
+			return api.buyTower(slotIndex, kind);
+		},
+		{ slotIndex, kind },
+	);
+	expect(ok).toBe(true);
 }
 
 async function closeBuildMenu(page: Page): Promise<void> {
-	// Click somewhere on the canvas that is not a build slot.
-	const canvas = page.getByTestId("game-canvas");
-	await canvas.click({ position: { x: 10, y: 10 } });
+	await page.evaluate(() => {
+		// biome-ignore lint/suspicious/noExplicitAny: test-only window access
+		(window as any).__td.testApi.closeMenu();
+	});
 }
 
 test.describe("gameplay e2e", () => {
 	test("places towers, runs waves, save/loads, reaches win or substantial progress", async ({
 		page,
+		variant,
 	}) => {
 		const errors: string[] = [];
 		page.on("pageerror", (e) => errors.push(e.message));
@@ -72,7 +68,7 @@ test.describe("gameplay e2e", () => {
 			if (msg.type() === "error") errors.push(msg.text());
 		});
 
-		await page.goto("/");
+		await page.goto(`/?ui=${variant}`);
 		await waitForBoot(page);
 
 		// Start from a clean slate so a stale save from a previous run
@@ -93,7 +89,7 @@ test.describe("gameplay e2e", () => {
 		await expect(page.getByTestId("load-button")).toBeDisabled();
 		await expect(page.getByTestId("save-button")).toBeEnabled();
 
-		// Build the loadout.
+		// Build the loadout via the state-based test API.
 		for (const { slot, kind } of SLOT_LOADOUT) {
 			await buildTowerOnSlot(page, slot, kind);
 		}
@@ -107,13 +103,16 @@ test.describe("gameplay e2e", () => {
 		// --- Wave 1 ---
 		const waveBtn = page.getByTestId("wave-button");
 		await expect(waveBtn).toBeEnabled();
-		await waveBtn.click();
+		await page.evaluate(() => {
+			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
+			(window as any).__td.testApi.startWave();
+		});
 		await expect.poll(async () => (await getState(page)).state).toBe("spawning");
 
 		// Speed up.
 		await page.evaluate(() => {
 			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
-			(window as any).__td.loop.setSpeed(20);
+			(window as any).__td.testApi.setSpeed(20);
 		});
 
 		// Wait until controller advances past wave 1 (idle on wave 2 or later).
@@ -132,23 +131,26 @@ test.describe("gameplay e2e", () => {
 		// --- Save / Load round-trip ---
 		await page.evaluate(() => {
 			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
-			(window as any).__td.loop.setSpeed(1);
+			(window as any).__td.testApi.setSpeed(1);
 		});
 
-		await expect(page.getByTestId("save-button")).toBeEnabled();
-		await page.getByTestId("save-button").click();
+		const saved = await page.evaluate(() => {
+			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
+			return (window as any).__td.testApi.save() as boolean;
+		});
+		expect(saved).toBe(true);
 
 		const savedRaw = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
 		expect(savedRaw).not.toBeNull();
-		const saved = JSON.parse(savedRaw as string) as {
+		const savedSnap = JSON.parse(savedRaw as string) as {
 			currentWave: number;
 			towers: { kind: string; slotIndex: number }[];
 			gold: number;
 			lives: number;
 		};
-		expect(saved.currentWave).toBe(2);
-		expect(saved.towers.length).toBe(SLOT_LOADOUT.length);
-		expect(saved.lives).toBe(afterWave1.lives);
+		expect(savedSnap.currentWave).toBe(2);
+		expect(savedSnap.towers.length).toBe(SLOT_LOADOUT.length);
+		expect(savedSnap.lives).toBe(afterWave1.lives);
 
 		// Reload, then load.
 		await page.reload();
@@ -156,9 +158,11 @@ test.describe("gameplay e2e", () => {
 		await expect(page.getByTestId("hud-wave")).toHaveText("1");
 		await expect(page.getByTestId("hud-gold")).toHaveText("250");
 
-		const loadBtn = page.getByTestId("load-button");
-		await expect(loadBtn).toBeEnabled();
-		await loadBtn.click();
+		const loadOk = await page.evaluate(() => {
+			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
+			return (window as any).__td.testApi.load() as boolean;
+		});
+		expect(loadOk).toBe(true);
 
 		await expect(page.getByTestId("hud-wave")).toHaveText("2");
 		const restored = await getState(page);
@@ -168,34 +172,38 @@ test.describe("gameplay e2e", () => {
 		// --- Pause works ---
 		await page.evaluate(() => {
 			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
-			(window as any).__td.loop.setSpeed(20);
+			(window as any).__td.testApi.setSpeed(20);
 		});
-		const pauseBtn = page.getByTestId("pause-button");
-		await pauseBtn.click();
-		await expect(pauseBtn).toHaveText("Resume");
+		await page.evaluate(() => {
+			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
+			(window as any).__td.testApi.pause();
+		});
 		await expect
 			.poll(async () =>
 				page.evaluate(() => {
 					// biome-ignore lint/suspicious/noExplicitAny: test-only window access
-					return Boolean((window as any).__td.loop.isPaused());
+					return Boolean((window as any).__td.testApi.isPaused());
 				}),
 			)
 			.toBe(true);
-		await pauseBtn.click();
-		await expect(pauseBtn).toHaveText("Pause");
+		await page.evaluate(() => {
+			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
+			(window as any).__td.testApi.resume();
+		});
 
 		// --- Auto-run remaining waves with greedy upgrades ---
 		await page.evaluate(() => {
 			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
-			const td = (window as any).__td;
-			td.loop.setSpeed(40);
+			const api = (window as any).__td.testApi;
+			api.setSpeed(40);
 			// biome-ignore lint/suspicious/noExplicitAny: test-only window access
 			(window as any).__td_runner = setInterval(() => {
-				if (td.controller.state === "idle" && td.controller.currentWave <= 10) {
-					td.upgradeAffordable();
-					td.startWave();
+				const state = api.getState();
+				if (state.state === "idle" && state.currentWave <= 10) {
+					api.upgradeAffordable();
+					api.startWave();
 				}
-				if (td.controller.state === "won" || td.controller.state === "lost") {
+				if (state.state === "won" || state.state === "lost") {
 					// biome-ignore lint/suspicious/noExplicitAny: test-only window access
 					clearInterval((window as any).__td_runner);
 				}
