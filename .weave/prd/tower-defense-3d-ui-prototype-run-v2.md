@@ -50,7 +50,7 @@ Per slice: `bun run typecheck`, `bun run lint`, `bun run test:unit` green. After
 Per variant (final eval): 60 fps mid-wave with 20 enemies + all slots built on mid-spec laptop; screenshot in PR; PLAYTEST rubric filled by human.
 
 <!-- weave:progress -->
-## Progress (10/11)
+## Progress (11/11)
 
 - [x] 001 — Remove 2D canvas renderer and obsolete render tests (closed)
 - [x] 002 — Three.js bootstrap: renderer, camera, scene, ground plane (closed)
@@ -62,5 +62,5 @@ Per variant (final eval): 60 fps mid-wave with 20 enemies + all slots built on m
 - [x] 008 — Variant B — Diegetic warm (materials, lighting, HUD, particles) (closed)
 - [x] 009 — Variant C — Arcade pop (toon materials, outline, HUD, particles) (closed)
 - [x] 010 — Playwright project matrix across A/B/C (closed)
-- [ ] 011 — PLAYTEST rubric + per-variant screenshots (merge-conflict)
+- [x] 011 — PLAYTEST rubric + per-variant screenshots (closed)
 <!-- /weave:progress -->
