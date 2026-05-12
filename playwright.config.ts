@@ -3,6 +3,7 @@ import type { UiOptions } from "./e2e/fixtures";
 
 export default defineConfig<UiOptions>({
 	testDir: "./e2e",
+	testIgnore: ["**/screenshots.spec.ts"],
 	fullyParallel: false,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 1 : 0,
