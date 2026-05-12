@@ -48,3 +48,19 @@ The previous run blew the 120-turn ceiling on a single welded foundation issue. 
 Per slice: `bun run typecheck`, `bun run lint`, `bun run test:unit` green. After tokens land: `bunx @google/design.md lint tokens/*.design.md` green. UI slices: `bun run test:e2e` green against available variants.
 
 Per variant (final eval): 60 fps mid-wave with 20 enemies + all slots built on mid-spec laptop; screenshot in PR; PLAYTEST rubric filled by human.
+
+<!-- weave:progress -->
+## Progress (10/11)
+
+- [x] 001 — Remove 2D canvas renderer and obsolete render tests (closed)
+- [x] 002 — Three.js bootstrap: renderer, camera, scene, ground plane (closed)
+- [x] 003 — Coord helpers + raycast click pipeline (closed)
+- [x] 004 — Kenney 3D asset loader + neutral variant rendering (closed)
+- [x] 005 — VariantModule interface + `?ui=` router (closed)
+- [x] 006 — `window.__td.testApi` + restored Playwright smoke (closed)
+- [x] 007 — Variant A — Holographic (materials, lighting, postprocess, HUD, particles) (closed)
+- [x] 008 — Variant B — Diegetic warm (materials, lighting, HUD, particles) (closed)
+- [x] 009 — Variant C — Arcade pop (toon materials, outline, HUD, particles) (closed)
+- [x] 010 — Playwright project matrix across A/B/C (closed)
+- [ ] 011 — PLAYTEST rubric + per-variant screenshots (merge-conflict)
+<!-- /weave:progress -->
