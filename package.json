@@ -12,6 +12,7 @@
 		"format": "biome format --write .",
 		"test:unit": "bun test src",
 		"test:e2e": "playwright test",
+		"test:screenshots": "playwright test --config=playwright.screenshots.config.ts",
 		"test": "bun run test:unit && bun run test:e2e",
 		"check:bedrock": "bun run scripts/check-bedrock.ts"
 	},

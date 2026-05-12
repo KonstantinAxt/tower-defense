@@ -8,6 +8,41 @@ Every box below must be tickable in ≤ 3 minutes of play. If not, the run
 failed the playability bar — write the failure in the box instead of ticking
 it.
 
+---
+
+## Rubric
+
+Score each axis 1–5 (1 = poor, 5 = excellent) while playing each variant.
+Run `bun run dev` and cycle through `?ui=A`, `?ui=B`, `?ui=C`.
+
+| Variant | Visual Clarity | Perf | Delight | Notes |
+|---------|:--------------:|:----:|:-------:|-------|
+| A — Holographic | | | | |
+| B — Diegetic | | | | |
+| C — Arcade | | | | |
+
+**Visual Clarity** — can you read gold / lives / wave / threats at a glance
+without squinting? Does the HUD compete with the game scene?
+
+**Perf** — does it feel smooth and responsive? Any stutter, hitching, or
+jank during wave spawning or particle bursts?
+
+**Delight** — is the visual style enjoyable and motivating to keep playing?
+Do the particles, animations, and UI chrome add to the experience?
+
+---
+
+## Screenshots
+
+Captured mid–wave 1 by `bun run test:screenshots`
+(writes to `test-results/variant-{a,b,c}.png`).
+
+| Variant A — Holographic | Variant B — Diegetic | Variant C — Arcade |
+|:-----------------------:|:--------------------:|:-----------------:|
+| ![Variant A](test-results/variant-a.png) | ![Variant B](test-results/variant-b.png) | ![Variant C](test-results/variant-c.png) |
+
+---
+
 ## First boot
 
 - [ ] `bun run dev` prints a localhost URL within 2 s
